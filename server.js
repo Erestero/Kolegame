@@ -17,6 +17,11 @@ const ROOM_TTL_MS = 30 * 60_000; // salle vide supprimée après 30 min
 const THEMES = [
   'Histoire', 'Musique', 'Philosophie', 'Littérature', 'Mythologie grecque',
   'Art', 'Cinéma', 'Géographie', 'Manga', 'Culture générale',
+  'Visual Novel', 'K-pop', 'Sciences sociales',
+];
+const AVATARS = [
+  'chat', 'chien', 'fennec', 'pandaroux', 'herisson',
+  'panda', 'dauphin', 'loutre', 'hippocampe', 'tortue',
 ];
 const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile'];
 const MIXED = 'Mélangé';
@@ -130,16 +135,30 @@ function uniqueName(room, name) {
   return `${name} (${i})`;
 }
 
-function addPlayer(room, name, ws) {
+// L'animal demandé s'il est libre, sinon un animal libre au hasard (doublons seulement si les 10 sont pris).
+function pickAvatar(room, wanted) {
+  const taken = new Set([...room.players.values()].map(p => p.avatar));
+  if (AVATARS.includes(wanted) && !taken.has(wanted)) return wanted;
+  const free = AVATARS.filter(a => !taken.has(a));
+  const pool = free.length ? free : AVATARS;
+  return pool[crypto.randomInt(pool.length)];
+}
+
+function addPlayer(room, name, ws, wantedAvatar) {
+  const avatar = pickAvatar(room, wantedAvatar);
   const player = {
     id: crypto.randomBytes(6).toString('hex'),
     token: crypto.randomBytes(16).toString('hex'),
     name: uniqueName(room, name),
+    avatar,
     ws: null,
     connected: false,
   };
   room.players.set(player.id, player);
   attach(room, player, ws);
+  if (wantedAvatar && avatar !== wantedAvatar) {
+    send(ws, { type: 'avatarTaken', avatar });
+  }
   return player;
 }
 
@@ -172,6 +191,7 @@ function snapshot(room, viewer, themes) {
     players: [...room.players.values()].map(p => ({
       id: p.id,
       name: p.name,
+      avatar: p.avatar,
       connected: p.connected,
       score: score(room, p.id),
       answered: room.phase === 'question' && p.id in g.answers[g.index],
@@ -211,6 +231,7 @@ function snapshot(room, viewer, themes) {
       entries: g.participants.map(id => ({
         playerId: id,
         name: room.players.get(id)?.name ?? '?',
+        avatar: room.players.get(id)?.avatar ?? null,
         answer: g.answers[g.reviewIndex][id] ?? '',
         grade: g.grades[g.reviewIndex][id] ?? null,
       })),
@@ -333,7 +354,7 @@ function handle(ws, msg) {
     const name = cleanText(msg.name, 20);
     if (!name) return send(ws, { type: 'error', message: 'Choisis un pseudo.' });
     const room = createRoom();
-    const p = addPlayer(room, name, ws);
+    const p = addPlayer(room, name, ws, msg.avatar);
     room.hostId = p.id;
     return broadcast(room);
   }
@@ -354,7 +375,7 @@ function handle(ws, msg) {
     }
     const name = cleanText(msg.name, 20);
     if (!name) return send(ws, { type: 'error', message: 'Choisis un pseudo.' });
-    addPlayer(room, name, ws);
+    addPlayer(room, name, ws, msg.avatar);
     return broadcast(room);
   }
 
@@ -426,6 +447,15 @@ function handle(ws, msg) {
         if (!p.connected && p.id !== room.hostId) room.players.delete(p.id);
       }
       return broadcast(room);
+
+    // Changement d'animal dans le salon.
+    case 'avatar': {
+      if (room.phase !== 'lobby' || !AVATARS.includes(msg.avatar)) return;
+      const takenBy = [...room.players.values()].find(p => p.avatar === msg.avatar && p !== player);
+      if (takenBy) return send(ws, { type: 'toast', message: `Cet animal est déjà pris par ${takenBy.name}.` });
+      player.avatar = msg.avatar;
+      return broadcast(room);
+    }
 
     // Le joueur revient à l'accueil : il quitte la salle tout de suite.
     case 'leave': {

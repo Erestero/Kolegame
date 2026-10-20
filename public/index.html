@@ -65,6 +65,23 @@
   .brand svg { width: 30px; height: 30px; }
   .levels { display: flex; gap: 8px; margin: 12px 0 18px; }
   .levels button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  .avatar { display: inline-flex; flex: none; }
+  .avatar svg { display: block; }
+  .picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .picker button {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    padding: 8px 4px 6px; border-radius: 12px; font-size: 12px; color: var(--muted);
+  }
+  .picker button.on { border-color: var(--accent); background: rgba(245, 185, 66, .14); color: var(--text); }
+  .picker button.taken { opacity: .35; }
+  .picker button:not(:disabled):hover .avatar { transform: scale(1.08); }
+  .picker .avatar { transition: transform .15s; }
+  .lobby-players { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 24px; }
+  .lobby-players figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 84px; text-align: center; font-weight: 600; font-size: 14px; }
+  .lobby-players figcaption { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #entries .who { display: flex; align-items: center; gap: 8px; }
+  #entries .who span:last-child { overflow: hidden; text-overflow: ellipsis; }
+  #ranking .player { display: flex; align-items: center; gap: 14px; }
   .qhead .level { font-size: 13px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); }
   #roomInfo { margin-left: auto; display: flex; align-items: center; gap: 16px; }
   #roomCode { font: 800 20px ui-monospace, Consolas, monospace; letter-spacing: .15em; color: var(--accent); }
@@ -198,6 +215,8 @@
       <div class="card">
         <label for="nameInput">Ton pseudo</label>
         <input type="text" id="nameInput" maxlength="20" placeholder="Ex. : Bérénice" autocomplete="off">
+        <span>Ton animal</span>
+        <div class="picker" id="homePicker"></div>
         <button class="primary" id="createBtn">Créer une salle</button>
         <div class="divider">ou rejoindre une salle</div>
         <div class="row">
@@ -212,6 +231,11 @@
       <p class="muted">Code de la salle</p>
       <div class="bigcode" id="lobbyCode"></div>
       <p class="muted">Tes amis ouvrent la même adresse, entrent ce code et leur pseudo.</p>
+      <div class="lobby-players" id="lobbyPlayers"></div>
+      <details class="card" id="avatarChange" style="margin-bottom:16px; padding:16px 20px">
+        <summary style="cursor:pointer; font-weight:700">Changer d'animal</summary>
+        <div class="picker" id="lobbyPicker" style="margin-top:14px"></div>
+      </details>
       <div class="card" id="hostSettings" hidden>
         <h2>Réglages de la partie</h2>
         <strong>Difficulté</strong>
@@ -307,6 +331,115 @@
 
 <script>
 const $ = id => document.getElementById(id);
+
+// ---------- Avatars : têtes d'animaux chibi (SVG 64×64)
+const INK = '#2b2b2b';
+function eyes(y = 36, dx = 9, color = INK) {
+  return [32 - dx, 32 + dx].map(x =>
+    `<ellipse cx="${x}" cy="${y}" rx="3.3" ry="3.9" fill="${color}"/><circle cx="${x + 1.1}" cy="${y - 1.5}" r="1.3" fill="#fff"/>`
+  ).join('');
+}
+function blush(y = 42, dx = 14) {
+  return [32 - dx, 32 + dx].map(x => `<ellipse cx="${x}" cy="${y}" rx="3.6" ry="2.1" fill="#ff8fa3" opacity=".65"/>`).join('');
+}
+function smile(y = 43) {
+  return `<path d="M28.5 ${y} q1.75 2.2 3.5 0 q1.75 2.2 3.5 0" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>`;
+}
+const AVATARS = {
+  chat: { name: 'Chat', svg:
+    `<path d="M11 30 L13 7 L29 19 Z" fill="#f4a259"/><path d="M53 30 L51 7 L35 19 Z" fill="#f4a259"/>
+     <path d="M15 24 L16 13 L24 19 Z" fill="#ffc8d0"/><path d="M49 24 L48 13 L40 19 Z" fill="#ffc8d0"/>
+     <ellipse cx="32" cy="37" rx="22" ry="19" fill="#f4a259"/>
+     <path d="M32 19v5M27 20l1 4.5M37 20l-1 4.5" stroke="#d9773a" stroke-width="2.2" stroke-linecap="round"/>
+     ${eyes(36)}${blush(43)}<path d="M30.3 40h3.4l-1.7 2z" fill="#e5737f"/>${smile(43)}
+     <path d="M8 40h8M9 45l7-2M56 40h-8M55 45l-7-2" stroke="#b86a35" stroke-width="1.2" stroke-linecap="round"/>` },
+  chien: { name: 'Chien', svg:
+    `<ellipse cx="32" cy="36" rx="20" ry="18.5" fill="#e0b07a"/>
+     <ellipse cx="12" cy="33" rx="6.5" ry="13" fill="#8a5a3b" transform="rotate(18 12 33)"/>
+     <ellipse cx="52" cy="33" rx="6.5" ry="13" fill="#8a5a3b" transform="rotate(-18 52 33)"/>
+     <ellipse cx="41.5" cy="33.5" rx="6.5" ry="5.5" fill="#c58c5c"/>
+     ${eyes(35)}${blush(43, 13)}
+     <ellipse cx="32" cy="44" rx="9.5" ry="7" fill="#f6dfc0"/><ellipse cx="32" cy="40.5" rx="3.3" ry="2.4" fill="${INK}"/>
+     <path d="M29 44.5 q1.5 1.8 3 0 q1.5 1.8 3 0" fill="none" stroke="${INK}" stroke-width="1.4" stroke-linecap="round"/>
+     <path d="M30.5 45.6 q1.5 4.4 3 0z" fill="#ff7b8a"/>` },
+  fennec: { name: 'Fennec', svg:
+    `<path d="M17 34 L5 1 L30 23 Z" fill="#f1c27d"/><path d="M47 34 L59 1 L34 23 Z" fill="#f1c27d"/>
+     <path d="M17 27 L10 8 L25 22 Z" fill="#fff1dc"/><path d="M47 27 L54 8 L39 22 Z" fill="#fff1dc"/>
+     <ellipse cx="32" cy="40" rx="20" ry="17" fill="#f1c27d"/>
+     <path d="M15 42 Q32 62 49 42 Q32 50 15 42 Z" fill="#fff1dc"/>
+     ${eyes(38, 8.5)}${blush(45, 13)}<ellipse cx="32" cy="45.5" rx="2.6" ry="2" fill="${INK}"/>
+     <path d="M29.5 48.5 q1.25 1.6 2.5 0 q1.25 1.6 2.5 0" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linecap="round"/>` },
+  pandaroux: { name: 'Panda roux', svg:
+    `<path d="M10 30 Q8 9 27 16 Z" fill="#c8553d"/><path d="M54 30 Q56 9 37 16 Z" fill="#c8553d"/>
+     <path d="M14 26 Q13 15 23 18.5 Z" fill="#fff"/><path d="M50 26 Q51 15 41 18.5 Z" fill="#fff"/>
+     <ellipse cx="32" cy="37" rx="22" ry="19" fill="#c8553d"/>
+     <ellipse cx="22" cy="27.5" rx="4" ry="2.5" fill="#fff"/><ellipse cx="42" cy="27.5" rx="4" ry="2.5" fill="#fff"/>
+     <ellipse cx="32" cy="45" rx="12" ry="8" fill="#fff"/>
+     <path d="M21 39 q-2.5 6 1.5 10M43 39 q2.5 6 -1.5 10" stroke="#7a2e1f" stroke-width="3" fill="none" stroke-linecap="round"/>
+     ${eyes(36)}<ellipse cx="32" cy="42" rx="2.8" ry="2" fill="${INK}"/>${smile(45)}` },
+  herisson: { name: 'Hérisson', svg:
+    `<path d="M7 42 L3 29 L11 27 L7 14 L18 16 L18 5 L27 12 L32 1 L37 12 L46 5 L46 16 L57 14 L53 27 L61 29 L57 42 Z" fill="#7b5236"/>
+     <circle cx="17" cy="28" r="4.5" fill="#e8c69a"/><circle cx="47" cy="28" r="4.5" fill="#e8c69a"/>
+     <ellipse cx="32" cy="41" rx="18" ry="16" fill="#f3dcb6"/>
+     ${eyes(38, 8)}${blush(45, 12)}<circle cx="32" cy="44" r="2.6" fill="${INK}"/>${smile(47)}` },
+  panda: { name: 'Panda', svg:
+    `<circle cx="14" cy="18" r="7.5" fill="${INK}"/><circle cx="50" cy="18" r="7.5" fill="${INK}"/>
+     <ellipse cx="32" cy="36" rx="22" ry="19.5" fill="#fafafa" stroke="#e1e1e1"/>
+     <ellipse cx="22.5" cy="36" rx="6" ry="7.5" fill="${INK}" transform="rotate(-22 22.5 36)"/>
+     <ellipse cx="41.5" cy="36" rx="6" ry="7.5" fill="${INK}" transform="rotate(22 41.5 36)"/>
+     <circle cx="23" cy="35" r="2.6" fill="#fff"/><circle cx="41" cy="35" r="2.6" fill="#fff"/>
+     <circle cx="23.6" cy="35.4" r="1.4" fill="${INK}"/><circle cx="41.6" cy="35.4" r="1.4" fill="${INK}"/>
+     ${blush(44, 15)}<ellipse cx="32" cy="42" rx="3" ry="2.1" fill="${INK}"/>${smile(45)}` },
+  dauphin: { name: 'Dauphin', svg:
+    `<path d="M32 4 q-3.5 5 0 7.5 q3.5 -2.5 0 -7.5z" fill="#8fd0ff"/>
+     <path d="M25 8 q-2 3 0 4.5 q2 -1.5 0 -4.5zM39 8 q-2 3 0 4.5 q2 -1.5 0 -4.5z" fill="#8fd0ff"/>
+     <path d="M12 42 q-8 1 -7 9 q5 -2 8.5 -5z" fill="#4f8cc4"/><path d="M52 42 q8 1 7 9 q-5 -2 -8.5 -5z" fill="#4f8cc4"/>
+     <ellipse cx="32" cy="37" rx="21" ry="19.5" fill="#6fa8dc"/>
+     <ellipse cx="32" cy="18.5" rx="2.6" ry="1.3" fill="#3d78ad"/>
+     <ellipse cx="32" cy="46" rx="14" ry="9" fill="#d6ebfb"/>
+     <ellipse cx="32" cy="48.5" rx="7.5" ry="4.2" fill="#a9d0f0"/>
+     ${eyes(36, 9.5)}${blush(43, 15)}
+     <path d="M27.5 48 q4.5 3.2 9 0" fill="none" stroke="${INK}" stroke-width="1.5" stroke-linecap="round"/>` },
+  loutre: { name: 'Loutre de mer', svg:
+    `<circle cx="14" cy="25" r="5" fill="#7a5236"/><circle cx="50" cy="25" r="5" fill="#7a5236"/>
+     <ellipse cx="32" cy="37" rx="21" ry="18.5" fill="#9c6b4a"/>
+     <ellipse cx="32" cy="40" rx="16.5" ry="13.5" fill="#ecd3b0"/>
+     ${eyes(36, 8)}${blush(43, 12.5)}
+     <ellipse cx="32" cy="41.5" rx="4.2" ry="3" fill="#3b2a20"/>${smile(45)}
+     <circle cx="25" cy="44" r=".9" fill="#8a6a50"/><circle cx="23" cy="46" r=".9" fill="#8a6a50"/>
+     <circle cx="39" cy="44" r=".9" fill="#8a6a50"/><circle cx="41" cy="46" r=".9" fill="#8a6a50"/>` },
+  hippocampe: { name: 'Hippocampe', svg:
+    `<path d="M17 24 L15 9 L23 17 L26 4 L31 17 L37 8 L38 23 Z" fill="#f08a4b"/>
+     <path d="M12 36 q-9 -3 -7 7 q4 -1 7 -3z" fill="#ffd27a"/>
+     <path d="M25 50 q-3 11 6 11 q7 0 5 -7 q-1.5 -3.5 -5 -2" fill="none" stroke="#f6a95b" stroke-width="5.5" stroke-linecap="round"/>
+     <path d="M37 29 Q47 30.5 53 30 Q58 29.5 58.5 33.5 Q58 37.5 53 37 Q47 36.5 37 38.5 Z" fill="#f6a95b"/>
+     <ellipse cx="57" cy="33.6" rx="1.6" ry="2.6" fill="#e07a3a"/>
+     <circle cx="27" cy="34" r="16.5" fill="#f6a95b"/>
+     <ellipse cx="24" cy="43" rx="10" ry="6.5" fill="#ffd9a8"/>
+     <path d="M17 43.5 h14M18.5 47 h11" stroke="#f6b97a" stroke-width="1.4" stroke-linecap="round"/>
+     <ellipse cx="29.5" cy="30.5" rx="4.6" ry="5.2" fill="${INK}"/><circle cx="31.2" cy="28.6" r="1.8" fill="#fff"/>
+     <ellipse cx="34" cy="38.5" rx="3.4" ry="2" fill="#ff8fa3" opacity=".7"/>
+     <path d="M37.5 39.5 q2 1.6 4 0" fill="none" stroke="${INK}" stroke-width="1.4" stroke-linecap="round"/>` },
+  tortue: { name: 'Tortue', svg:
+    `<path d="M3 64 Q3 42 32 42 Q61 42 61 64 Z" fill="#6d8f3a"/>
+     <path d="M24 64 v-9 l8 -5 l8 5 v9" fill="#8aa84f" stroke="#55702c" stroke-width="1.2"/>
+     <path d="M9 64 q2 -10 11 -12 M55 64 q-2 -10 -11 -12" stroke="#55702c" stroke-width="1.2" fill="none"/>
+     <ellipse cx="32" cy="32" rx="19" ry="17" fill="#8bc34a"/>
+     <circle cx="24" cy="21" r="2.6" fill="#a5d66b"/><circle cx="40" cy="20" r="2" fill="#a5d66b"/><circle cx="33" cy="17" r="1.6" fill="#a5d66b"/>
+     ${eyes(32, 8)}${blush(38, 12.5)}${smile(38)}` },
+};
+const AVATAR_IDS = Object.keys(AVATARS);
+function avatarEl(id, size = 28) {
+  const a = AVATARS[id];
+  const span = document.createElement('span');
+  span.className = 'avatar';
+  span.style.width = span.style.height = size + 'px';
+  if (a) {
+    span.title = a.name;
+    span.innerHTML = `<svg viewBox="0 0 64 64" width="${size}" height="${size}" aria-hidden="true">${a.svg}</svg>`;
+  }
+  return span;
+}
 const fmt = n => n.toLocaleString('fr-FR');
 const GRADE_LABEL = { 1: 'Correct', 0.5: 'Presque', 0: 'Incorrect' };
 const gradeClass = g => g === 1 ? 'g1' : g === 0.5 ? 'g05' : g === 0 ? 'g0' : '';
@@ -331,6 +464,26 @@ function saveSession(s) {
 }
 function savedName() { try { return localStorage.getItem('quiz-name') || ''; } catch { return ''; } }
 function rememberName(n) { try { localStorage.setItem('quiz-name', n); } catch {} }
+function savedAvatar() {
+  let a = null;
+  try { a = localStorage.getItem('quiz-avatar'); } catch {}
+  return AVATAR_IDS.includes(a) ? a : AVATAR_IDS[Math.floor(Math.random() * AVATAR_IDS.length)];
+}
+function rememberAvatar(a) { try { localStorage.setItem('quiz-avatar', a); } catch {} }
+let myAvatar = savedAvatar();
+
+// Grille des 10 animaux. `taken` : animaux déjà pris par d'autres joueurs (salon).
+function renderPicker(container, selected, onPick, taken = new Map()) {
+  container.replaceChildren();
+  for (const id of AVATAR_IDS) {
+    const owner = taken.get(id);
+    container.append(h('button', {
+      class: (id === selected ? 'on ' : '') + (owner ? 'taken' : ''),
+      title: owner ? `${AVATARS[id].name} (pris par ${owner})` : AVATARS[id].name,
+      onclick: () => onPick(id),
+    }, avatarEl(id, 44), AVATARS[id].name));
+  }
+}
 
 let session = loadSession();
 let state = null;
@@ -373,6 +526,8 @@ function onMessage(m) {
     if (m.fatal) { session = null; saveSession(null); state = null; render(); }
   } else if (m.type === 'toast') {
     toast(m.message);
+  } else if (m.type === 'avatarTaken') {
+    toast(`Ton animal était déjà pris : tu joues ${AVATARS[m.avatar].name}.`);
   }
 }
 
@@ -413,6 +568,11 @@ function renderHome() {
   if (!name.value) name.value = savedName();
   const fromHash = location.hash.replace('#', '').toUpperCase().slice(0, 4);
   if (fromHash && !$('codeInput').value) $('codeInput').value = fromHash;
+  renderPicker($('homePicker'), myAvatar, id => {
+    myAvatar = id;
+    rememberAvatar(id);
+    renderHome();
+  });
 }
 
 function renderPlayers() {
@@ -425,6 +585,7 @@ function renderPlayers() {
     const showTick = state.phase === 'question';
     list.append(h('li', { class: (p.id === state.you ? 'me ' : '') + (p.connected ? '' : 'off') },
       showTick ? h('span', { class: 'tick' }, p.answered ? '✓' : '') : null,
+      avatarEl(p.avatar, 30),
       h('span', { class: 'name', title: p.name }, (p.id === state.hostId ? '👑 ' : '') + p.name),
       state.phase !== 'lobby' ? h('span', { class: 'pts' }, fmt(p.score)) : null,
     ));
@@ -433,6 +594,23 @@ function renderPlayers() {
 
 function renderLobby(fresh) {
   $('lobbyCode').textContent = state.code;
+
+  const lobbyPlayers = $('lobbyPlayers');
+  lobbyPlayers.replaceChildren();
+  for (const p of state.players) {
+    lobbyPlayers.append(h('figure', {},
+      avatarEl(p.avatar, 64),
+      h('figcaption', { title: p.name }, (p.id === state.hostId ? '👑 ' : '') + p.name)));
+  }
+  const me = state.players.find(p => p.id === state.you);
+  const taken = new Map(state.players.filter(p => p.id !== state.you).map(p => [p.avatar, p.name]));
+  renderPicker($('lobbyPicker'), me && me.avatar, id => {
+    if (taken.has(id)) return toast(`Cet animal est déjà pris par ${taken.get(id)}.`);
+    myAvatar = id;
+    rememberAvatar(id);
+    send({ type: 'avatar', avatar: id });
+  }, taken);
+
   $('hostSettings').hidden = !isHost();
   $('waitHost').hidden = isHost();
   if (!isHost()) return;
@@ -540,7 +718,7 @@ function renderReview(fresh) {
       right = h('span', { class: 'badge ' + gradeClass(e.grade) }, e.grade === null ? 'à corriger' : GRADE_LABEL[e.grade]);
     }
     list.append(h('li', { class: i === cursor ? 'cur' : '', onclick: isHost() ? () => setCursor(i) : null },
-      h('span', { class: 'who', title: e.name }, e.name),
+      h('span', { class: 'who', title: e.name }, avatarEl(e.avatar, 34), h('span', {}, e.name)),
       h('span', { class: 'ans' + (e.answer ? '' : ' none') }, e.answer || 'pas de réponse'),
       right));
   });
@@ -567,7 +745,7 @@ function renderEnd() {
     const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[rank] || rank + 'e';
     list.append(h('li', { class: rank === 1 ? 'p1' : '' },
       h('span', { class: 'rank' }, medal),
-      h('span', {}, p.name),
+      h('span', { class: 'player' }, avatarEl(p.avatar, 48), h('span', {}, p.name)),
       h('span', { class: 'pts' }, fmt(p.score) + ' pt' + (p.score > 1 ? 's' : ''))));
   });
   $('endHost').hidden = !isHost();
@@ -643,14 +821,14 @@ function askName() {
 }
 $('createBtn').onclick = () => {
   const name = askName();
-  if (name) send({ type: 'create', name });
+  if (name) send({ type: 'create', name, avatar: myAvatar });
 };
 $('joinBtn').onclick = () => {
   const name = askName();
   const code = $('codeInput').value.trim().toUpperCase();
   if (!name) return;
   if (code.length !== 4) { toast('Le code fait 4 lettres.'); return; }
-  send({ type: 'join', code, name });
+  send({ type: 'join', code, name, avatar: myAvatar });
 };
 $('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('joinBtn').click(); });
 $('nameInput').addEventListener('keydown', e => {

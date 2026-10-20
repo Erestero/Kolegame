@@ -96,6 +96,7 @@ Autres règles :
 - Si un joueur recharge la page ou perd la connexion, il retrouve sa place automatiquement. Si l'hôte disparaît plus de 20 s, un autre joueur prend la main.
 - L'hôte joue aussi. Il corrige donc ses propres réponses : c'est une affaire de confiance entre amis.
 - Un clic sur le logo ou le titre KoleBallRun, en haut à gauche, ramène à l'accueil (en quittant la salle).
+- Chaque joueur choisit un animal sur l'accueil : chat, chien, fennec, panda roux, hérisson, panda, dauphin, loutre de mer, hippocampe ou tortue. Deux joueurs ne peuvent pas avoir le même tant qu'il en reste de libres. On peut en changer dans le salon (« Changer d'animal »).
 
 ## Ajouter des questions
 
@@ -105,7 +106,7 @@ Ajoute des lignes dans `questions.json` :
 ["Littérature", "Qui est l'auteur des Thibault ?", "Roger Martin du Gard", "Difficile"]
 ```
 
-- Le thème doit être écrit exactement comme dans la liste : Histoire, Musique, Philosophie, Littérature, Mythologie grecque, Art, Cinéma, Géographie, Manga, Culture générale. Un thème nouveau apparaît automatiquement dans le salon.
+- Le thème doit être écrit exactement comme dans la liste : Histoire, Musique, Philosophie, Littérature, Mythologie grecque, Art, Cinéma, Géographie, Manga, Culture générale, Visual Novel, K-pop, Sciences sociales. Un thème nouveau apparaît automatiquement dans le salon.
 - La difficulté vaut `Facile`, `Moyen` ou `Difficile`. Sans difficulté, la question est rangée en `Moyen`.
 - Le fichier est relu au début de chaque partie : pas besoin de redémarrer le serveur.
 - Attention à la syntaxe JSON : une virgule entre chaque ligne, pas de virgule après la dernière. En cas d'erreur, le serveur l'affiche dans le terminal.
