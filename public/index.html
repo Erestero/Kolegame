@@ -76,7 +76,11 @@
   .picker button.taken { opacity: .35; }
   .picker button:not(:disabled):hover .avatar { transform: scale(1.08); }
   .picker .avatar { transition: transform .15s; }
-  .lobby-players { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 24px; }
+  .picker-select { display: none; align-items: center; gap: 12px; }
+  .picker-select select {
+    flex: 1; min-width: 0; padding: 12px 14px; border-radius: 10px;
+    background: var(--panel-2); border: 1px solid var(--line); color: var(--text); font: inherit;
+  }  .lobby-players { display: flex; flex-wrap: wrap; gap: 14px; margin: 18px 0 24px; }
   .lobby-players figure { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 84px; text-align: center; font-weight: 600; font-size: 14px; }
   .lobby-players figcaption { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #entries .who { display: flex; align-items: center; gap: 8px; }
@@ -188,6 +192,27 @@
     box-shadow: 0 10px 30px rgba(0, 0, 0, .4); opacity: 0; transition: opacity .2s; pointer-events: none;
   }
   #toast.show { opacity: 1; }
+
+  /* Téléphone : liste déroulante pour l'animal et mise en page sur une colonne. */
+  @media (max-width: 640px) {
+    .picker { display: none; }
+    .picker-select { display: flex; }
+    #app { grid-template-columns: 1fr; }
+    header { padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+    #roomInfo { gap: 10px; }
+    main { padding: 24px 16px; }
+    aside { border-left: 0; border-top: 1px solid var(--line); }
+    .card { padding: 20px 16px; }
+    h1 { font-size: 32px; }
+    .bigcode { font-size: 48px; }
+    .themes { grid-template-columns: 1fr; }
+    .row { flex-wrap: wrap; }
+    input[type=range] { width: 100%; }
+    .qtext { font-size: 26px; }
+    #answerInput { font-size: 20px; }
+    #entries li { grid-template-columns: 1fr; gap: 8px; }
+    #ranking li { grid-template-columns: 44px 1fr auto; padding: 12px 14px; font-size: 18px; }
+  }
 </style>
 </head>
 <body>
@@ -211,12 +236,11 @@
     <!-- Accueil -->
     <section id="home" class="center">
       <h1>KoleBallRun</h1>
-      <p class="muted">Réponses libres, correction par l'hôte. Pas de compte, juste un pseudo.</p>
+      <p class="muted">On va essayer d'exploser le KoleBallRun</p>
       <div class="card">
         <label for="nameInput">Ton pseudo</label>
         <input type="text" id="nameInput" maxlength="20" placeholder="Ex. : Bérénice" autocomplete="off">
-        <span>Ton animal</span>
-        <div class="picker" id="homePicker"></div>
+        <div id="homePicker"></div>
         <button class="primary" id="createBtn">Créer une salle</button>
         <div class="divider">ou rejoindre une salle</div>
         <div class="row">
@@ -234,7 +258,7 @@
       <div class="lobby-players" id="lobbyPlayers"></div>
       <details class="card" id="avatarChange" style="margin-bottom:16px; padding:16px 20px">
         <summary style="cursor:pointer; font-weight:700">Changer d'animal</summary>
-        <div class="picker" id="lobbyPicker" style="margin-top:14px"></div>
+        <div id="lobbyPicker" style="margin-top:14px"></div>
       </details>
       <div class="card" id="hostSettings" hidden>
         <h2>Réglages de la partie</h2>
@@ -362,13 +386,16 @@ const AVATARS = {
      <ellipse cx="32" cy="44" rx="9.5" ry="7" fill="#f6dfc0"/><ellipse cx="32" cy="40.5" rx="3.3" ry="2.4" fill="${INK}"/>
      <path d="M29 44.5 q1.5 1.8 3 0 q1.5 1.8 3 0" fill="none" stroke="${INK}" stroke-width="1.4" stroke-linecap="round"/>
      <path d="M30.5 45.6 q1.5 4.4 3 0z" fill="#ff7b8a"/>` },
-  fennec: { name: 'Fennec', svg:
-    `<path d="M17 34 L5 1 L30 23 Z" fill="#f1c27d"/><path d="M47 34 L59 1 L34 23 Z" fill="#f1c27d"/>
-     <path d="M17 27 L10 8 L25 22 Z" fill="#fff1dc"/><path d="M47 27 L54 8 L39 22 Z" fill="#fff1dc"/>
-     <ellipse cx="32" cy="40" rx="20" ry="17" fill="#f1c27d"/>
-     <path d="M15 42 Q32 62 49 42 Q32 50 15 42 Z" fill="#fff1dc"/>
-     ${eyes(38, 8.5)}${blush(45, 13)}<ellipse cx="32" cy="45.5" rx="2.6" ry="2" fill="${INK}"/>
-     <path d="M29.5 48.5 q1.25 1.6 2.5 0 q1.25 1.6 2.5 0" fill="none" stroke="${INK}" stroke-width="1.3" stroke-linecap="round"/>` },
+  grenouille: { name: 'Grenouille', svg:
+    `<circle cx="19" cy="23" r="10.5" fill="#7ccf6a"/><circle cx="45" cy="23" r="10.5" fill="#7ccf6a"/>
+     <ellipse cx="32" cy="41" rx="24" ry="17" fill="#7ccf6a"/>
+     <ellipse cx="32" cy="49" rx="15" ry="7.5" fill="#c9f0b4"/>
+     <circle cx="19" cy="23" r="6.5" fill="#fff"/><circle cx="45" cy="23" r="6.5" fill="#fff"/>
+     <circle cx="20" cy="24" r="3.8" fill="${INK}"/><circle cx="46" cy="24" r="3.8" fill="${INK}"/>
+     <circle cx="21.3" cy="22.4" r="1.4" fill="#fff"/><circle cx="47.3" cy="22.4" r="1.4" fill="#fff"/>
+     <circle cx="29.5" cy="36" r="1" fill="#3f8a33"/><circle cx="34.5" cy="36" r="1" fill="#3f8a33"/>
+     ${blush(42, 16)}
+     <path d="M24 42 q8 6.5 16 0" fill="none" stroke="${INK}" stroke-width="1.6" stroke-linecap="round"/>` },
   pandaroux: { name: 'Panda roux', svg:
     `<path d="M10 30 Q8 9 27 16 Z" fill="#c8553d"/><path d="M54 30 Q56 9 37 16 Z" fill="#c8553d"/>
      <path d="M14 26 Q13 15 23 18.5 Z" fill="#fff"/><path d="M50 26 Q51 15 41 18.5 Z" fill="#fff"/>
@@ -472,17 +499,26 @@ function savedAvatar() {
 function rememberAvatar(a) { try { localStorage.setItem('quiz-avatar', a); } catch {} }
 let myAvatar = savedAvatar();
 
-// Grille des 10 animaux. `taken` : animaux déjà pris par d'autres joueurs (salon).
+// Choix de l'animal : grille sur ordinateur, liste déroulante sur téléphone (bascule en CSS).
+// `taken` : animaux déjà pris par d'autres joueurs (salon).
 function renderPicker(container, selected, onPick, taken = new Map()) {
-  container.replaceChildren();
+  const grid = h('div', { class: 'picker' });
+  const select = h('select', { 'aria-label': 'Choisis ton animal' });
   for (const id of AVATAR_IDS) {
     const owner = taken.get(id);
-    container.append(h('button', {
+    const label = owner ? `${AVATARS[id].name} (pris par ${owner})` : AVATARS[id].name;
+    grid.append(h('button', {
       class: (id === selected ? 'on ' : '') + (owner ? 'taken' : ''),
-      title: owner ? `${AVATARS[id].name} (pris par ${owner})` : AVATARS[id].name,
+      title: label,
       onclick: () => onPick(id),
     }, avatarEl(id, 44), AVATARS[id].name));
+    const option = h('option', { value: id }, label);
+    option.disabled = Boolean(owner);
+    select.append(option);
   }
+  select.value = selected || '';
+  select.addEventListener('change', () => onPick(select.value));
+  container.replaceChildren(grid, h('div', { class: 'picker-select' }, avatarEl(selected, 48), select));
 }
 
 let session = loadSession();
