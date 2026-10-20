@@ -20,7 +20,7 @@ const THEMES = [
   'Visual Novel', 'K-pop', 'Sciences sociales',
 ];
 const AVATARS = [
-  'chat', 'chien', 'fennec', 'pandaroux', 'herisson',
+  'chat', 'chien', 'grenouille', 'pandaroux', 'herisson',
   'panda', 'dauphin', 'loutre', 'hippocampe', 'tortue',
 ];
 const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile'];

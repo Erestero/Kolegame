@@ -96,7 +96,7 @@ Autres règles :
 - Si un joueur recharge la page ou perd la connexion, il retrouve sa place automatiquement. Si l'hôte disparaît plus de 20 s, un autre joueur prend la main.
 - L'hôte joue aussi. Il corrige donc ses propres réponses : c'est une affaire de confiance entre amis.
 - Un clic sur le logo ou le titre KoleBallRun, en haut à gauche, ramène à l'accueil (en quittant la salle).
-- Chaque joueur choisit un animal sur l'accueil : chat, chien, fennec, panda roux, hérisson, panda, dauphin, loutre de mer, hippocampe ou tortue. Deux joueurs ne peuvent pas avoir le même tant qu'il en reste de libres. On peut en changer dans le salon (« Changer d'animal »).
+- Chaque joueur choisit un animal sur l'accueil : chat, chien, grenouille, panda roux, hérisson, panda, dauphin, loutre de mer, hippocampe ou tortue. Deux joueurs ne peuvent pas avoir le même tant qu'il en reste de libres. On peut en changer dans le salon (« Changer d'animal »).
 
 ## Ajouter des questions
 
