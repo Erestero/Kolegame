@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz entre amis</title>
+<style>
+  :root {
+    --bg: #0f1424;
+    --panel: #182036;
+    --panel-2: #212b47;
+    --line: #2e3a5c;
+    --text: #eef1f8;
+    --muted: #9aa5c4;
+    --accent: #f5b942;
+    --accent-ink: #1b1405;
+    --good: #3ecf8e;
+    --half: #f5b942;
+    --bad: #ef5d6c;
+    --focus: #6aa8ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  button, input { font: inherit; color: inherit; }
+  button {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 18px; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+  button.ghost { background: transparent; }
+  input[type=text] {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; outline: none; width: 100%;
+  }
+  input[type=text]:focus { border-color: var(--focus); }
+  [hidden] { display: none !important; }
+  .muted { color: var(--muted); }
+  kbd {
+    display: inline-block; min-width: 1.6em; padding: 1px 6px; text-align: center;
+    border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px;
+    background: var(--panel-2); font: 600 13px/1.4 ui-monospace, Consolas, monospace;
+  }
+
+  #app { display: grid; grid-template-columns: 1fr 280px; grid-template-rows: auto 1fr; min-height: 100vh; }
+  #app.solo { grid-template-columns: 1fr; }
+  header {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 24px;
+    padding: 14px 28px; border-bottom: 1px solid var(--line);
+  }
+  .brand { font-weight: 800; letter-spacing: .02em; font-size: 20px; }
+  .brand span { color: var(--accent); }
+  #roomInfo { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+  #roomCode { font: 800 20px ui-monospace, Consolas, monospace; letter-spacing: .15em; color: var(--accent); }
+  #conn { font-size: 13px; }
+  #conn.off { color: var(--bad); }
+  main { padding: 36px 48px; overflow: auto; }
+  aside { border-left: 1px solid var(--line); padding: 24px 20px; background: #121a2e; }
+  aside h3 { margin: 0 0 14px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+  #playerList { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  #playerList li {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 8px; background: var(--panel);
+  }
+  #playerList li.me { outline: 1px solid var(--line); }
+  #playerList li.off { opacity: .45; }
+  #playerList .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #playerList .pts { font-variant-numeric: tabular-nums; font-weight: 700; }
+  #playerList .tick { color: var(--good); font-weight: 800; width: 1em; text-align: center; }
+
+  .center { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 40px; margin: 0 0 8px; }
+  h2 { margin: 0 0 16px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 28px; }
+
+  /* Accueil */
+  #home .card { display: grid; gap: 16px; }
+  .row { display: flex; gap: 12px; align-items: center; }
+  .divider { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14px; }
+  .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+  #codeInput { text-transform: uppercase; letter-spacing: .3em; font-weight: 700; width: 160px; text-align: center; }
+
+  /* Salon */
+  .bigcode { font: 800 64px ui-monospace, Consolas, monospace; letter-spacing: .2em; color: var(--accent); }
+  .themes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 12px 0 18px; }
+  .themes label {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px;
+    background: var(--panel-2); border: 1px solid var(--line); cursor: pointer; user-select: none;
+  }
+  .themes label.on { border-color: var(--accent); }
+  .themes label.empty { opacity: .45; }
+  .themes .count { margin-left: auto; color: var(--muted); font-size: 13px; }
+  input[type=range] { width: 260px; accent-color: var(--accent); }
+
+  /* Question */
+  .qhead { display: flex; align-items: baseline; gap: 14px; color: var(--muted); font-weight: 600; }
+  .qhead .theme { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; font-size: 14px; }
+  .qhead .spacer { flex: 1; }
+  .timer { margin: 14px 0 30px; display: flex; align-items: center; gap: 14px; }
+  .bar { flex: 1; height: 10px; border-radius: 5px; background: var(--panel-2); overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); transition: width .1s linear; }
+  .timer.hurry .bar > div { background: var(--bad); }
+  .secs { font: 800 28px ui-monospace, Consolas, monospace; width: 2.2em; text-align: right; }
+  .timer.hurry .secs { color: var(--bad); }
+  .qtext { font-size: 38px; line-height: 1.25; font-weight: 700; margin: 0 0 36px; min-height: 2.5em; }
+  #answerInput { font-size: 24px; padding: 16px 18px; }
+  #answerInput:disabled { opacity: .7; }
+  .sent { margin-top: 14px; color: var(--good); font-weight: 600; min-height: 1.5em; }
+  .footer-actions { margin-top: 36px; display: flex; gap: 12px; }
+  .report { font-size: 14px; padding: 6px 12px; }
+
+  /* Correction */
+  .expected {
+    margin: 0 0 24px; padding: 16px 20px; border-radius: 12px;
+    background: rgba(62, 207, 142, .12); border: 1px solid rgba(62, 207, 142, .45);
+    font-size: 22px;
+  }
+  .expected b { color: var(--good); }
+  .qtext.small { font-size: 28px; margin-bottom: 20px; min-height: 0; }
+  #entries { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  #entries li {
+    display: grid; grid-template-columns: 160px 1fr auto; align-items: center; gap: 16px;
+    padding: 12px 16px; border-radius: 12px; background: var(--panel); border: 2px solid transparent;
+  }
+  #entries li.cur { border-color: var(--focus); }
+  #entries .who { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #entries .ans { font-size: 20px; word-break: break-word; }
+  #entries .ans.none { color: var(--muted); font-style: italic; font-size: 16px; }
+  .grades { display: flex; gap: 6px; }
+  .grades button { padding: 6px 12px; font-size: 14px; font-weight: 700; }
+  .grades button.sel.g1 { background: var(--good); border-color: var(--good); color: #062014; }
+  .grades button.sel.g05 { background: var(--half); border-color: var(--half); color: var(--accent-ink); }
+  .grades button.sel.g0 { background: var(--bad); border-color: var(--bad); color: #22060a; }
+  .badge { font-weight: 700; font-size: 14px; padding: 4px 10px; border-radius: 999px; background: var(--panel-2); color: var(--muted); }
+  .badge.g1 { background: var(--good); color: #062014; }
+  .badge.g05 { background: var(--half); color: var(--accent-ink); }
+  .badge.g0 { background: var(--bad); color: #22060a; }
+  .help { margin-top: 22px; color: var(--muted); font-size: 14px; display: flex; gap: 18px; flex-wrap: wrap; }
+  .nav { display: flex; gap: 10px; margin-top: 22px; align-items: center; }
+  .nav .spacer { flex: 1; }
+
+  /* Classement */
+  #ranking { list-style: none; margin: 24px 0; padding: 0; display: grid; gap: 10px; }
+  #ranking li {
+    display: grid; grid-template-columns: 60px 1fr auto; align-items: center; gap: 16px;
+    padding: 16px 22px; border-radius: 14px; background: var(--panel); font-size: 22px;
+  }
+  #ranking li.p1 { background: linear-gradient(90deg, rgba(245, 185, 66, .28), var(--panel)); }
+  #ranking .rank { font-weight: 800; font-size: 26px; }
+  #ranking .pts { font-weight: 800; font-variant-numeric: tabular-nums; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: var(--panel-2); border: 1px solid var(--line); padding: 12px 20px; border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .4); opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app" class="solo">
+  <header>
+    <div class="brand">Ze<span>Quiz</span></div>
+    <div id="roomInfo" hidden>
+      <span class="muted">Salle</span><span id="roomCode"></span>
+      <button class="ghost" id="copyLink" title="Copier le lien d'invitation">Copier le lien</button>
+      <span id="conn"></span>
+    </div>
+  </header>
+
+  <main>
+    <!-- Accueil -->
+    <section id="home" class="center">
+      <h1>Quiz entre amis</h1>
+      <p class="muted">Réponses libres, correction par l'hôte. Pas de compte, juste un pseudo.</p>
+      <div class="card">
+        <label for="nameInput">Ton pseudo</label>
+        <input type="text" id="nameInput" maxlength="20" placeholder="Ex. : Bérénice" autocomplete="off">
+        <button class="primary" id="createBtn">Créer une salle</button>
+        <div class="divider">ou rejoindre une salle</div>
+        <div class="row">
+          <input type="text" id="codeInput" maxlength="4" placeholder="CODE" autocomplete="off">
+          <button id="joinBtn">Rejoindre</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Salon -->
+    <section id="lobby" class="center" hidden>
+      <p class="muted">Code de la salle</p>
+      <div class="bigcode" id="lobbyCode"></div>
+      <p class="muted">Tes amis ouvrent la même adresse, entrent ce code et leur pseudo.</p>
+      <div class="card" id="hostSettings" hidden>
+        <h2>Réglages de la partie</h2>
+        <div class="row">
+          <strong>Thèmes</strong>
+          <span class="muted" id="themeSummary"></span>
+          <span style="flex:1"></span>
+          <button class="ghost" id="allThemes">Tout cocher</button>
+          <button class="ghost" id="noThemes">Tout décocher</button>
+        </div>
+        <div class="themes" id="themeList"></div>
+        <div class="row">
+          <strong>Nombre de questions</strong>
+          <input type="range" id="countInput" min="10" max="20" value="15">
+          <span id="countValue" style="font-weight:800;font-size:20px"></span>
+        </div>
+        <div style="margin-top:22px">
+          <button class="primary" id="startBtn">Lancer la partie</button>
+        </div>
+      </div>
+      <div class="card" id="waitHost" hidden>
+        <h2>En attente de l'hôte…</h2>
+        <p class="muted" style="margin:0">La partie démarre dès que l'hôte la lance.</p>
+      </div>
+    </section>
+
+    <!-- Phase 1 : questions -->
+    <section id="question" class="center" hidden>
+      <div class="qhead">
+        <span class="theme" id="qTheme"></span>
+        <span class="spacer"></span>
+        <span id="qNum"></span>
+      </div>
+      <div class="timer" id="timer">
+        <div class="bar"><div id="timerBar"></div></div>
+        <div class="secs" id="timerSecs"></div>
+      </div>
+      <p class="qtext" id="qText"></p>
+      <input type="text" id="answerInput" maxlength="200" autocomplete="off" placeholder="Ta réponse… puis Entrée">
+      <div class="sent" id="sentMsg"></div>
+      <div class="footer-actions">
+        <button class="ghost report" id="reportQ">Signaler la question</button>
+      </div>
+    </section>
+
+    <!-- Phase 2 : correction -->
+    <section id="review" class="center" hidden>
+      <div class="qhead">
+        <span class="theme" id="rTheme"></span>
+        <span class="spacer"></span>
+        <span id="rNum"></span>
+      </div>
+      <p class="qtext small" id="rText"></p>
+      <div class="expected">Réponse attendue : <b id="rAnswer"></b></div>
+      <ul id="entries"></ul>
+      <div class="nav">
+        <button id="prevQ">← Précédente</button>
+        <button id="nextQ">Suivante →</button>
+        <span class="spacer"></span>
+        <button class="ghost report" id="reportR">Signaler la question</button>
+      </div>
+      <div class="help" id="hostHelp">
+        <span><kbd>↑</kbd> <kbd>↓</kbd> choisir une réponse</span>
+        <span><kbd>C</kbd> correct (1)</span>
+        <span><kbd>P</kbd> presque (0,5)</span>
+        <span><kbd>I</kbd> incorrect (0)</span>
+        <span><kbd>←</kbd> <kbd>→</kbd> question précédente / suivante</span>
+      </div>
+      <p class="help" id="playerHelp">L'hôte corrige les réponses. Les scores se mettent à jour en direct.</p>
+    </section>
+
+    <!-- Classement -->
+    <section id="end" class="center" hidden>
+      <h1>Classement final</h1>
+      <p class="muted" id="endSub"></p>
+      <ol id="ranking"></ol>
+      <div class="row" id="endHost">
+        <button id="backReview">Revoir la correction</button>
+        <button class="primary" id="restartBtn">Nouvelle partie</button>
+      </div>
+    </section>
+  </main>
+
+  <aside id="sidebar" hidden>
+    <h3>Joueurs</h3>
+    <ul id="playerList"></ul>
+  </aside>
+</div>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('fr-FR');
+const GRADE_LABEL = { 1: 'Correct', 0.5: 'Presque', 0: 'Incorrect' };
+const gradeClass = g => g === 1 ? 'g1' : g === 0.5 ? 'g05' : g === 0 ? 'g0' : '';
+
+function h(tag, attrs = {}, ...children) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') el.className = v;
+    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  for (const c of children) if (c != null) el.append(c);
+  return el;
+}
+
+// ---------- Session (par onglet : deux onglets = deux joueurs pour tester)
+function loadSession() {
+  try { return JSON.parse(sessionStorage.getItem('quiz-session')); } catch { return null; }
+}
+function saveSession(s) {
+  try { s ? sessionStorage.setItem('quiz-session', JSON.stringify(s)) : sessionStorage.removeItem('quiz-session'); } catch {}
+}
+function savedName() { try { return localStorage.getItem('quiz-name') || ''; } catch { return ''; } }
+function rememberName(n) { try { localStorage.setItem('quiz-name', n); } catch {} }
+
+let session = loadSession();
+let state = null;
+let ws = null;
+let deadline = 0;
+let screenKey = null;
+let lastQuestionIndex = null;
+let hostNav = null;              // position locale de l'hôte en correction (réactivité au clavier)
+const reported = new Set();      // `${gameId}:${index}`
+let selectedThemes = null;
+
+// ---------- Connexion
+function connect() {
+  ws = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+  ws.onopen = () => {
+    setConn(true);
+    if (session) send({ type: 'join', code: session.code, token: session.token, name: session.name });
+  };
+  ws.onmessage = e => onMessage(JSON.parse(e.data));
+  ws.onclose = () => { setConn(false); setTimeout(connect, 1500); };
+}
+function send(msg) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(msg)); }
+function setConn(ok) {
+  const c = $('conn');
+  c.textContent = ok ? '' : 'Reconnexion…';
+  c.className = ok ? '' : 'off';
+}
+
+function onMessage(m) {
+  if (m.type === 'joined') {
+    session = { code: m.code, token: m.token, name: m.name };
+    saveSession(session);
+  } else if (m.type === 'state') {
+    state = m;
+    render();
+  } else if (m.type === 'error') {
+    toast(m.message);
+    if (m.fatal) { session = null; saveSession(null); state = null; render(); }
+  } else if (m.type === 'toast') {
+    toast(m.message);
+  }
+}
+
+let toastTimer;
+function toast(text) {
+  const t = $('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// ---------- Rendu
+const isHost = () => state && state.hostId === state.you;
+
+function render() {
+  const phase = state ? state.phase : 'home';
+  for (const id of ['home', 'lobby', 'question', 'review', 'end']) $(id).hidden = id !== phase;
+  $('app').classList.toggle('solo', !state);
+  $('sidebar').hidden = !state;
+  $('roomInfo').hidden = !state;
+
+  const key = phase + ':' + isHost() + ':' + (state && state.gameId);
+  const fresh = key !== screenKey;
+  screenKey = key;
+
+  if (!state) return renderHome();
+  $('roomCode').textContent = state.code;
+  renderPlayers();
+  if (phase === 'lobby') renderLobby(fresh);
+  if (phase === 'question') renderQuestion();
+  if (phase === 'review') renderReview(fresh);
+  if (phase === 'end') renderEnd();
+}
+
+function renderHome() {
+  const name = $('nameInput');
+  if (!name.value) name.value = savedName();
+  const fromHash = location.hash.replace('#', '').toUpperCase().slice(0, 4);
+  if (fromHash && !$('codeInput').value) $('codeInput').value = fromHash;
+}
+
+function renderPlayers() {
+  const list = $('playerList');
+  list.replaceChildren();
+  const players = state.phase === 'end'
+    ? [...state.players].sort((a, b) => b.score - a.score)
+    : state.players;
+  for (const p of players) {
+    const showTick = state.phase === 'question';
+    list.append(h('li', { class: (p.id === state.you ? 'me ' : '') + (p.connected ? '' : 'off') },
+      showTick ? h('span', { class: 'tick' }, p.answered ? '✓' : '') : null,
+      h('span', { class: 'name', title: p.name }, (p.id === state.hostId ? '👑 ' : '') + p.name),
+      state.phase !== 'lobby' ? h('span', { class: 'pts' }, fmt(p.score)) : null,
+    ));
+  }
+}
+
+function renderLobby(fresh) {
+  $('lobbyCode').textContent = state.code;
+  $('hostSettings').hidden = !isHost();
+  $('waitHost').hidden = isHost();
+  if (!isHost()) return;
+
+  if (fresh || !selectedThemes) {
+    if (!selectedThemes) selectedThemes = new Set(state.themes.filter(t => t.count > 0).map(t => t.name));
+    $('countInput').min = state.minQ;
+    $('countInput').max = state.maxQ;
+  }
+  const list = $('themeList');
+  list.replaceChildren();
+  for (const t of state.themes) {
+    const on = selectedThemes.has(t.name);
+    const box = h('input', { type: 'checkbox' });
+    box.checked = on;
+    box.disabled = t.count === 0;
+    box.addEventListener('change', () => {
+      box.checked ? selectedThemes.add(t.name) : selectedThemes.delete(t.name);
+      renderLobby(false);
+    });
+    list.append(h('label', { class: (on ? 'on ' : '') + (t.count ? '' : 'empty') },
+      box, h('span', {}, t.name), h('span', { class: 'count' }, t.count + ' q.')));
+  }
+  const available = state.themes.filter(t => selectedThemes.has(t.name)).reduce((s, t) => s + t.count, 0);
+  const n = selectedThemes.size;
+  $('themeSummary').textContent = n === 0 ? 'aucun thème'
+    : n === state.themes.length ? 'tous mélangés'
+    : `${n} thème${n > 1 ? 's' : ''} · ${available} questions dispo`;
+  $('countValue').textContent = $('countInput').value;
+  $('startBtn').disabled = n === 0;
+}
+
+function renderQuestion() {
+  const q = state.question;
+  if (q.index !== lastQuestionIndex || screenKey !== renderQuestion.key) {
+    renderQuestion.key = screenKey;
+    lastQuestionIndex = q.index;
+    $('qTheme').textContent = q.theme;
+    $('qNum').textContent = `Question ${q.index + 1} / ${q.total}`;
+    $('qText').textContent = q.text;
+    const input = $('answerInput');
+    input.value = '';
+    input.disabled = false;
+    $('sentMsg').textContent = '';
+    if (q.playing) setTimeout(() => input.focus(), 0);
+  }
+  deadline = performance.now() + q.remainingMs;
+  const input = $('answerInput');
+  input.hidden = !q.playing;
+  if (!q.playing) $('sentMsg').textContent = 'Tu regardes cette partie en spectateur.';
+  if (q.yourAnswer !== null) {
+    input.disabled = true;
+    input.value = q.yourAnswer;
+    $('sentMsg').textContent = 'Réponse enregistrée. En attente des autres…';
+  }
+  updateReportBtn($('reportQ'), q.index);
+  tick();
+}
+
+function renderReview(fresh) {
+  const r = state.review;
+  if (isHost()) {
+    if (fresh || !hostNav) hostNav = { index: r.index, cursor: r.cursor };
+  } else {
+    hostNav = null;
+  }
+  const cursor = isHost() && hostNav.index === r.index ? hostNav.cursor : r.cursor;
+
+  $('rTheme').textContent = r.theme;
+  $('rNum').textContent = `Correction · ${r.index + 1} / ${r.total}`;
+  $('rText').textContent = r.text;
+  $('rAnswer').textContent = r.answer;
+
+  const list = $('entries');
+  list.replaceChildren();
+  r.entries.forEach((e, i) => {
+    let right;
+    if (isHost()) {
+      right = h('div', { class: 'grades' },
+        ...[[1, 'C'], [0.5, 'P'], [0, 'I']].map(([v, k]) => h('button', {
+          class: gradeClass(v) + (e.grade === v ? ' sel' : ''),
+          title: GRADE_LABEL[v],
+          onclick: () => { setCursor(i); grade(i, v, false); },
+        }, k)));
+    } else {
+      right = h('span', { class: 'badge ' + gradeClass(e.grade) }, e.grade === null ? 'à corriger' : GRADE_LABEL[e.grade]);
+    }
+    list.append(h('li', { class: i === cursor ? 'cur' : '', onclick: isHost() ? () => setCursor(i) : null },
+      h('span', { class: 'who', title: e.name }, e.name),
+      h('span', { class: 'ans' + (e.answer ? '' : ' none') }, e.answer || 'pas de réponse'),
+      right));
+  });
+  const cur = list.children[cursor];
+  if (cur) cur.scrollIntoView({ block: 'nearest' });
+
+  const last = r.index === r.total - 1;
+  $('prevQ').hidden = $('nextQ').hidden = !isHost();
+  $('prevQ').disabled = r.index === 0;
+  $('nextQ').textContent = last ? 'Classement final →' : 'Suivante →';
+  $('hostHelp').hidden = !isHost();
+  $('playerHelp').hidden = isHost();
+  updateReportBtn($('reportR'), r.index);
+}
+
+function renderEnd() {
+  const players = [...state.players].sort((a, b) => b.score - a.score);
+  $('endSub').textContent = `Sur ${state.total} questions`;
+  const list = $('ranking');
+  list.replaceChildren();
+  let rank = 0, prev = null;
+  players.forEach((p, i) => {
+    if (p.score !== prev) { rank = i + 1; prev = p.score; }
+    const medal = { 1: '🥇', 2: '🥈', 3: '🥉' }[rank] || rank + 'e';
+    list.append(h('li', { class: rank === 1 ? 'p1' : '' },
+      h('span', { class: 'rank' }, medal),
+      h('span', {}, p.name),
+      h('span', { class: 'pts' }, fmt(p.score) + ' pt' + (p.score > 1 ? 's' : ''))));
+  });
+  $('endHost').hidden = !isHost();
+}
+
+function updateReportBtn(btn, index) {
+  const done = reported.has(state.gameId + ':' + index);
+  btn.disabled = done;
+  btn.textContent = done ? 'Question signalée ✓' : 'Signaler la question';
+  btn.onclick = () => {
+    reported.add(state.gameId + ':' + index);
+    send({ type: 'report', index });
+    updateReportBtn(btn, index);
+  };
+}
+
+// ---------- Chrono
+function tick() {
+  if (!state || state.phase !== 'question') return;
+  const rem = Math.max(0, deadline - performance.now());
+  $('timerBar').style.width = (rem / 30000 * 100) + '%';
+  $('timerSecs').textContent = Math.ceil(rem / 1000);
+  $('timer').classList.toggle('hurry', rem < 5000);
+}
+setInterval(tick, 100);
+
+// ---------- Actions de l'hôte en correction
+function setCursor(i) {
+  const r = state.review;
+  hostNav = { index: r.index, cursor: Math.max(0, Math.min(r.entries.length - 1, i)) };
+  send({ type: 'nav', index: hostNav.index, cursor: hostNav.cursor });
+  renderReview(false);
+}
+function goQuestion(delta) {
+  const r = state.review;
+  const next = r.index + delta;
+  if (next >= r.total) return send({ type: 'finish' });
+  if (next < 0) return;
+  hostNav = { index: next, cursor: 0 };
+  send({ type: 'nav', index: next, cursor: 0 });
+}
+function grade(i, value, advance) {
+  const r = state.review;
+  const entry = r.entries[i];
+  if (!entry) return;
+  send({ type: 'grade', index: r.index, playerId: entry.playerId, value });
+  if (advance && i < r.entries.length - 1) setCursor(i + 1);
+}
+
+document.addEventListener('keydown', e => {
+  if (!state || state.phase !== 'review' || !isHost()) return;
+  if (e.target.tagName === 'INPUT' || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (!hostNav || hostNav.index !== state.review.index) return; // navigation en cours
+  const k = e.key.toLowerCase();
+  const actions = {
+    arrowup: () => setCursor(hostNav.cursor - 1),
+    arrowdown: () => setCursor(hostNav.cursor + 1),
+    arrowleft: () => goQuestion(-1),
+    arrowright: () => goQuestion(1),
+    c: () => grade(hostNav.cursor, 1, true),
+    p: () => grade(hostNav.cursor, 0.5, true),
+    i: () => grade(hostNav.cursor, 0, true),
+  };
+  if (actions[k]) { e.preventDefault(); actions[k](); }
+});
+
+// ---------- Boutons
+function askName() {
+  const name = $('nameInput').value.trim();
+  if (!name) { toast('Choisis un pseudo.'); $('nameInput').focus(); return null; }
+  rememberName(name);
+  return name;
+}
+$('createBtn').onclick = () => {
+  const name = askName();
+  if (name) send({ type: 'create', name });
+};
+$('joinBtn').onclick = () => {
+  const name = askName();
+  const code = $('codeInput').value.trim().toUpperCase();
+  if (!name) return;
+  if (code.length !== 4) { toast('Le code fait 4 lettres.'); return; }
+  send({ type: 'join', code, name });
+};
+$('codeInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('joinBtn').click(); });
+$('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') ($('codeInput').value.trim() ? $('joinBtn') : $('createBtn')).click();
+});
+
+$('copyLink').onclick = async () => {
+  const link = location.origin + '/#' + state.code;
+  try { await navigator.clipboard.writeText(link); toast('Lien copié : ' + link); }
+  catch { toast(link); }
+};
+
+$('allThemes').onclick = () => { selectedThemes = new Set(state.themes.filter(t => t.count).map(t => t.name)); renderLobby(false); };
+$('noThemes').onclick = () => { selectedThemes = new Set(); renderLobby(false); };
+$('countInput').oninput = () => { $('countValue').textContent = $('countInput').value; };
+$('startBtn').onclick = () => send({ type: 'start', themes: [...selectedThemes], count: Number($('countInput').value) });
+
+const answerInput = $('answerInput');
+answerInput.addEventListener('input', () => {
+  if (state && state.phase === 'question') send({ type: 'draft', index: state.question.index, text: answerInput.value });
+});
+answerInput.addEventListener('keydown', e => {
+  if (e.key !== 'Enter' || !state || state.phase !== 'question') return;
+  const text = answerInput.value.trim();
+  if (!text) return;
+  send({ type: 'answer', index: state.question.index, text });
+  answerInput.disabled = true;
+  $('sentMsg').textContent = 'Réponse enregistrée. En attente des autres…';
+});
+
+$('prevQ').onclick = () => goQuestion(-1);
+$('nextQ').onclick = () => goQuestion(1);
+$('backReview').onclick = () => send({ type: 'back' });
+$('restartBtn').onclick = () => send({ type: 'restart' });
+
+render();
+connect();
+</script>
+</body>
+</html>
