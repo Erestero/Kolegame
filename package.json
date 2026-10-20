@@ -1,7 +1,7 @@
 {
-  "name": "quiz-entre-amis",
-  "version": "1.0.0",
-  "description": "Quiz multijoueur en réponses libres, façon ZeQuestion, pour jouer entre amis",
+  "name": "koleballrun",
+  "version": "1.1.0",
+  "description": "KoleBallRun : quiz multijoueur en réponses libres, façon ZeQuestion, pour jouer entre amis",
   "main": "server.js",
   "private": true,
   "scripts": {
