@@ -21,7 +21,7 @@ const THEMES = [
 ];
 const AVATARS = [
   'chat', 'chien', 'grenouille', 'pandaroux', 'herisson',
-  'panda', 'dauphin', 'loutre', 'hippocampe', 'tortue',
+  'panda', 'dauphin', 'loutre', 'lion', 'tortue',
 ];
 const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile'];
 const MIXED = 'Mélangé';
@@ -574,6 +574,6 @@ setInterval(() => {
 }, 60_000);
 
 server.listen(PORT, () => {
-  console.log(`KoleBallRun lancé sur http://localhost:${PORT}`);
+  console.log(`StixBallRun lancé sur http://localhost:${PORT}`);
   console.log(`Pour inviter des amis : cloudflared tunnel --url http://localhost:${PORT}`);
 });
