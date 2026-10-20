@@ -18,6 +18,8 @@ const THEMES = [
   'Histoire', 'Musique', 'Philosophie', 'Littérature', 'Mythologie grecque',
   'Art', 'Cinéma', 'Géographie', 'Manga', 'Culture générale',
 ];
+const DIFFICULTIES = ['Facile', 'Moyen', 'Difficile'];
+const MIXED = 'Mélangé';
 
 const QUESTIONS_FILE = path.join(__dirname, 'questions.json');
 const REPORT_FILE = path.join(__dirname, 'signalements.txt');
@@ -33,10 +35,12 @@ function loadQuestions() {
     const raw = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf8'));
     return raw
       .filter(q => Array.isArray(q) && q.length >= 3)
-      .map(([theme, text, answer]) => ({
+      .map(([theme, text, answer, difficulty]) => ({
         theme: String(theme).trim(),
         text: String(text).trim(),
         answer: String(answer).trim(),
+        // Sans 4e élément, la question est rangée en « Moyen ».
+        difficulty: DIFFICULTIES.includes(difficulty) ? difficulty : 'Moyen',
       }))
       .filter(q => q.theme && q.text && q.answer);
   } catch (e) {
@@ -45,10 +49,15 @@ function loadQuestions() {
   }
 }
 
+// Nombre de questions par thème et par difficulté, pour le salon.
 function themeCounts() {
-  const counts = new Map(THEMES.map(t => [t, 0]));
-  for (const q of loadQuestions()) counts.set(q.theme, (counts.get(q.theme) || 0) + 1);
-  return [...counts].map(([name, count]) => ({ name, count }));
+  const empty = () => Object.fromEntries(DIFFICULTIES.map(d => [d, 0]));
+  const counts = new Map(THEMES.map(t => [t, empty()]));
+  for (const q of loadQuestions()) {
+    if (!counts.has(q.theme)) counts.set(q.theme, empty());
+    counts.get(q.theme)[q.difficulty]++;
+  }
+  return [...counts].map(([name, byDifficulty]) => ({ name, byDifficulty }));
 }
 
 function shuffle(arr) {
@@ -61,11 +70,12 @@ function shuffle(arr) {
 }
 
 // Tirage équilibré : on pioche à tour de rôle dans chaque thème, puis on mélange.
-function draw(pool, themes, count) {
+function draw(pool, themes, difficulty, count) {
   const byTheme = new Map();
   const seen = new Set();
   for (const q of shuffle(pool)) {
     if (!themes.includes(q.theme)) continue;
+    if (difficulty !== MIXED && q.difficulty !== difficulty) continue;
     const key = q.text.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
@@ -158,6 +168,7 @@ function snapshot(room, viewer, themes) {
     hostId: room.hostId,
     you: viewer.id,
     gameId: g ? g.id : null,
+    difficulty: g ? g.difficulty : null,
     players: [...room.players.values()].map(p => ({
       id: p.id,
       name: p.name,
@@ -169,6 +180,7 @@ function snapshot(room, viewer, themes) {
 
   if (room.phase === 'lobby') {
     s.themes = themes;
+    s.difficulties = DIFFICULTIES;
     s.minQ = MIN_Q;
     s.maxQ = MAX_Q;
   }
@@ -222,11 +234,12 @@ function broadcast(room) {
 
 // ---------------------------------------------------------------- Partie
 
-function startGame(room, themes, count) {
-  const questions = draw(loadQuestions(), themes, count);
-  if (!questions.length) return 'Aucune question disponible pour ces thèmes.';
+function startGame(room, themes, difficulty, count) {
+  const questions = draw(loadQuestions(), themes, difficulty, count);
+  if (!questions.length) return 'Aucune question disponible pour ces thèmes à ce niveau.';
   room.game = {
     id: crypto.randomBytes(4).toString('hex'),
+    difficulty,
     questions,
     participants: [...room.players.keys()],
     index: -1,
@@ -242,7 +255,7 @@ function startGame(room, themes, count) {
   room.phase = 'question';
   nextQuestion(room);
   return questions.length < count
-    ? `Seulement ${questions.length} questions disponibles pour ces thèmes.`
+    ? `Seulement ${questions.length} questions disponibles pour ces thèmes à ce niveau.`
     : null;
 }
 
@@ -298,7 +311,7 @@ function report(room, player, index) {
     new Date().toLocaleString('fr-FR'),
     `salle ${room.code}`,
     `signalé par ${player.name}`,
-    q.theme,
+    `${q.theme} (${q.difficulty})`,
     q.text,
     `réponse attendue : ${q.answer}`,
   ].join(' | ');
@@ -357,7 +370,8 @@ function handle(ws, msg) {
       const themes = (Array.isArray(msg.themes) ? msg.themes : []).map(String);
       if (!themes.length) return send(ws, { type: 'error', message: 'Choisis au moins un thème.' });
       const count = clamp(parseInt(msg.count, 10) || MIN_Q, MIN_Q, MAX_Q);
-      const warning = startGame(room, themes, count);
+      const difficulty = [...DIFFICULTIES, MIXED].includes(msg.difficulty) ? msg.difficulty : 'Moyen';
+      const warning = startGame(room, themes, difficulty, count);
       if (warning) send(ws, { type: room.phase === 'lobby' ? 'error' : 'toast', message: warning });
       return;
     }
@@ -412,6 +426,24 @@ function handle(ws, msg) {
         if (!p.connected && p.id !== room.hostId) room.players.delete(p.id);
       }
       return broadcast(room);
+
+    // Le joueur revient à l'accueil : il quitte la salle tout de suite.
+    case 'leave': {
+      ws.ctx = null;
+      player.ws = null;
+      player.connected = false;
+      if (room.phase === 'lobby') room.players.delete(player.id);
+      if (isHost) {
+        clearTimeout(room.hostTimer);
+        const next = [...room.players.values()].find(p => p.connected);
+        if (next) {
+          room.hostId = next.id;
+          send(next.ws, { type: 'toast', message: "L'hôte est parti : c'est toi qui mènes la partie." });
+        }
+      }
+      if (room.phase === 'question' && everyoneAnswered(room)) return endQuestion(room);
+      return broadcast(room);
+    }
 
     case 'report': {
       if (!g || room.phase === 'lobby') return;
@@ -512,6 +544,6 @@ setInterval(() => {
 }, 60_000);
 
 server.listen(PORT, () => {
-  console.log(`Quiz lancé sur http://localhost:${PORT}`);
+  console.log(`KoleBallRun lancé sur http://localhost:${PORT}`);
   console.log(`Pour inviter des amis : cloudflared tunnel --url http://localhost:${PORT}`);
 });

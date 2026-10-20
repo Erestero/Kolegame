@@ -1,6 +1,6 @@
-# ZeQuiz : quiz entre amis
+# KoleBallRun
 
-Quiz multijoueur en réponses libres. Un joueur crée une salle, les autres la rejoignent avec un code de 4 lettres et un pseudo. Tout tourne sur ton PC, gratuitement.
+Quiz multijoueur en réponses libres. Un joueur crée une salle, les autres la rejoignent avec un code de 4 lettres et un pseudo. Hébergement gratuit, sur ton PC ou sur Render.
 
 ## Contenu du projet
 
@@ -8,8 +8,8 @@ Quiz multijoueur en réponses libres. Un joueur crée une salle, les autres la r
 |---|---|
 | `server.js` | Serveur HTTP + WebSocket (paquet `ws`). Les salles vivent en mémoire. |
 | `public/index.html` | Le jeu complet (interface + logique client). |
-| `questions.json` | La base de questions, format `["Thème", "Question", "Réponse"]`. |
-| `signalements.txt` | Créé automatiquement quand quelqu'un signale une question. |
+| `questions.json` | La base de questions, format `["Thème", "Question", "Réponse", "Difficulté"]`. |
+| `signalements.txt` | Créé automatiquement quand quelqu'un signale une question. Consultable sur la page `/signalements`. |
 | `prompt-questions.txt` | Ton prompt pour générer de nouvelles questions. |
 
 ## 1. Installer Node.js (une seule fois)
@@ -66,16 +66,16 @@ Rouvre PowerShell ensuite.
 
 ```
 cloudflared tunnel login
-cloudflared tunnel create zequiz
-cloudflared tunnel route dns zequiz quiz.mondomaine.fr
-cloudflared tunnel run --url http://localhost:3000 zequiz
+cloudflared tunnel create koleballrun
+cloudflared tunnel route dns koleballrun quiz.mondomaine.fr
+cloudflared tunnel run --url http://localhost:3000 koleballrun
 ```
 
 Pour un usage entre amis, le tunnel rapide suffit largement.
 
 ## Déroulement d'une partie
 
-1. **Salon** : l'hôte (👑) coche les thèmes (un, plusieurs ou tous) et choisit le nombre de questions (10 à 20). Si plusieurs thèmes sont cochés, le tirage est équilibré entre eux. Une question ne sort jamais deux fois dans la même partie.
+1. **Salon** : l'hôte (👑) choisit la difficulté (Facile, Moyen, Difficile ou Mélangé), coche les thèmes (un, plusieurs ou tous) et choisit le nombre de questions (10 à 20). Si plusieurs thèmes sont cochés, le tirage est équilibré entre eux. Une question ne sort jamais deux fois dans la même partie.
 2. **Phase 1** : chaque question s'affiche avec un chrono de 30 s. Chacun tape sa réponse et valide avec **Entrée**. La question suivante arrive à la fin du chrono, ou plus tôt si tout le monde a validé. À la fin du chrono, une réponse tapée mais pas validée est quand même enregistrée.
 3. **Phase 2 (correction)** : les questions repassent une par une, avec la bonne réponse et les réponses de chacun. Commandes de l'hôte :
 
@@ -95,16 +95,18 @@ Autres règles :
 - **Signaler la question** ajoute une ligne dans `signalements.txt` (date, salle, joueur, thème, question, réponse attendue).
 - Si un joueur recharge la page ou perd la connexion, il retrouve sa place automatiquement. Si l'hôte disparaît plus de 20 s, un autre joueur prend la main.
 - L'hôte joue aussi. Il corrige donc ses propres réponses : c'est une affaire de confiance entre amis.
+- Un clic sur le logo ou le titre KoleBallRun, en haut à gauche, ramène à l'accueil (en quittant la salle).
 
 ## Ajouter des questions
 
 Ajoute des lignes dans `questions.json` :
 
 ```json
-["Littérature", "Qui est l'auteur des Thibault ?", "Roger Martin du Gard"]
+["Littérature", "Qui est l'auteur des Thibault ?", "Roger Martin du Gard", "Difficile"]
 ```
 
 - Le thème doit être écrit exactement comme dans la liste : Histoire, Musique, Philosophie, Littérature, Mythologie grecque, Art, Cinéma, Géographie, Manga, Culture générale. Un thème nouveau apparaît automatiquement dans le salon.
+- La difficulté vaut `Facile`, `Moyen` ou `Difficile`. Sans difficulté, la question est rangée en `Moyen`.
 - Le fichier est relu au début de chaque partie : pas besoin de redémarrer le serveur.
 - Attention à la syntaxe JSON : une virgule entre chaque ligne, pas de virgule après la dernière. En cas d'erreur, le serveur l'affiche dans le terminal.
 - Pour générer des questions en masse, utilise `prompt-questions.txt` avec un assistant IA, puis vérifie les réponses avant de les ajouter.

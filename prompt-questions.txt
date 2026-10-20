@@ -1,0 +1,20 @@
+Génère 50 questions de quiz en français sur le thème : [THÈME], niveau [Facile / Moyen / Difficile], au format JSON : ["Thème", "Question", "Réponse courte", "Difficulté"]. Les questions seront posées en réponse libre (pas de QCM).
+
+NIVEAU
+   * Facile : ce que connaît toute personne cultivée (ex. : "Qui a écrit Madame Bovary ?").
+   * Moyen : bonne culture générale (ex. : "Qui a écrit Le Grand Meaulnes ?").
+   * Difficile : pointu, jamais de questions que tout le monde connaît. Exemple de niveau visé : "Qui est l'auteur des Thibault ?" (Roger Martin du Gard), et non "Qui est l'auteur des Contemplations ?".
+   * Chaque question appelle une réponse courte et sans ambiguïté (un nom, un titre, une date, un lieu). Pas de "citez deux des trois...".
+
+ORIENTATION
+   * Majoritairement la France, puis l'Europe. Le jeu est fait pour de jeunes Parisiens bourgeois et cultivés.
+   * Évite le biais anglo-saxon et américanocentré des modèles de langage : peu de questions sur les États-Unis, sauf les références mondiales (Jack London, Faulkner, Steinbeck, Pollock, Rothko...).
+   * Ajoute une minorité de questions hors Europe (littérature arabe, chinoise, indienne, japonaise, etc.), environ 10 à 15 %.
+   * Le manga se traite à part, avec les œuvres et auteurs importants en France.
+
+FIABILITÉ
+   * Ne pose que des questions dont tu es très sûr. En cas de doute sur une date, un nom ou un titre, abandonne la question.
+   * Pas de doublons, et varie les époques et les sous-domaines du thème.
+   * Ajoute à la fin une liste des 5 questions dont tu es le moins sûr, pour que je les vérifie.
+
+Thèmes possibles (à écrire exactement ainsi) : Histoire, Musique, Philosophie, Littérature, Mythologie grecque, Art, Cinéma, Géographie, Manga, Culture générale.
